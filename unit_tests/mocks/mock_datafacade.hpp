@@ -80,12 +80,17 @@ class MockDataFacade final : public engine::datafacade::BaseDataFacade
         result_weights[0] = 1;
         return result_weights;
     }
-    std::vector<EdgeWeight> GetUncompressedReverseWeights(const EdgeID /* id */) const override
+    std::vector<EdgeWeight> GetUncompressedReverseWeights(const EdgeID id) const override
     {
-        std::vector<EdgeWeight> result_weights;
-        result_weights.resize(1);
-        result_weights[0] = 1;
-        return result_weights;
+        return GetUncompressedForwardWeights(id);
+    }
+    std::vector<EdgeWeight> GetUncompressedForwardDurations(const EdgeID id) const override
+    {
+        return GetUncompressedForwardWeights(id);
+    }
+    std::vector<EdgeWeight> GetUncompressedReverseDurations(const EdgeID id) const override
+    {
+        return GetUncompressedForwardWeights(id);
     }
     std::vector<uint8_t> GetUncompressedForwardDatasources(const EdgeID /*id*/) const override
     {

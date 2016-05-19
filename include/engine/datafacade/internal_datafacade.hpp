@@ -739,6 +739,60 @@ class InternalDataFacade final : public BaseDataFacade
     }
 
     virtual std::vector<EdgeWeight>
+    GetUncompressedForwardDurations(const EdgeID id) const override final
+    {
+        /*
+         * EdgeWeights's for geometries are stored in one place for
+         * both forward and reverse segments along the same bi-
+         * directional edge. The m_geometry_indices stores
+         * refences to where to find the beginning of the bi-
+         * directional edge in the m_geometry_list vector. For
+         * forward weights of bi-directional edges, edges 2 to
+         * n of that edge need to be read.
+         */
+        const unsigned begin = m_geometry_indices.at(id) + 1;
+        const unsigned end = m_geometry_indices.at(id + 1);
+
+        std::vector<EdgeWeight> result_durations;
+        result_durations.reserve(end - begin);
+
+        std::for_each(m_geometry_list.begin() + begin,
+                      m_geometry_list.begin() + end,
+                      [&](const osrm::extractor::CompressedEdgeContainer::CompressedEdge &edge) {
+                          result_durations.emplace_back(edge.forward_duration);
+                      });
+
+        return result_durations;
+    }
+
+    virtual std::vector<EdgeWeight>
+    GetUncompressedReverseDurations(const EdgeID id) const override final
+    {
+        /*
+         * EdgeWeights for geometries are stored in one place for
+         * both forward and reverse segments along the same bi-
+         * directional edge. The m_geometry_indices stores
+         * refences to where to find the beginning of the bi-
+         * directional edge in the m_geometry_list vector. For
+         * reverse durations of bi-directional edges, edges 1 to
+         * n-1 of that edge need to be read in reverse.
+         */
+        const unsigned begin = m_geometry_indices.at(id);
+        const unsigned end = m_geometry_indices.at(id + 1) - 1;
+
+        std::vector<EdgeWeight> result_durations;
+        result_durations.reserve(end - begin);
+
+        std::for_each(m_geometry_list.rbegin() + (m_geometry_list.size() - end),
+                      m_geometry_list.rbegin() + (m_geometry_list.size() - begin),
+                      [&](const osrm::extractor::CompressedEdgeContainer::CompressedEdge &edge) {
+                          result_durations.emplace_back(edge.reverse_duration);
+                      });
+
+        return result_durations;
+    }
+
+    virtual std::vector<EdgeWeight>
     GetUncompressedForwardWeights(const EdgeID id) const override final
     {
         /*
