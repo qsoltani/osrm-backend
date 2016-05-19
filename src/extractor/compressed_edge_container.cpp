@@ -121,12 +121,15 @@ void CompressedEdgeContainer::SerializeInternalVector(const std::string &path) c
 //     edge_id_1               edge_id_2
 //   ----------> via_node_id -----------> target_node_id
 //     weight_1                weight_2
+//     duration_1              duration_2
 void CompressedEdgeContainer::CompressEdge(const EdgeID edge_id_1,
                                            const EdgeID edge_id_2,
                                            const NodeID via_node_id,
                                            const NodeID target_node_id,
                                            const EdgeWeight weight1,
-                                           const EdgeWeight weight2)
+                                           const EdgeWeight weight2,
+                                           const EdgeWeight duration1,
+                                           const EdgeWeight duration2)
 {
     // remove super-trivial geometries
     BOOST_ASSERT(SPECIAL_EDGEID != edge_id_1);
@@ -164,13 +167,14 @@ void CompressedEdgeContainer::CompressEdge(const EdgeID edge_id_1,
     BOOST_ASSERT(edge_bucket_id1 == GetPositionForID(edge_id_1));
     BOOST_ASSERT(edge_bucket_id1 < m_compressed_oneway_geometries.size());
 
-    std::vector<OnewayCompressedEdge> &edge_bucket_list1 = m_compressed_oneway_geometries[edge_bucket_id1];
+    std::vector<OnewayCompressedEdge> &edge_bucket_list1 =
+        m_compressed_oneway_geometries[edge_bucket_id1];
 
     // note we don't save the start coordinate: it is implicitly given by edge 1
     // weight1 is the distance to the (currently) last coordinate in the bucket
     if (edge_bucket_list1.empty())
     {
-        edge_bucket_list1.emplace_back(OnewayCompressedEdge{via_node_id, weight1});
+        edge_bucket_list1.emplace_back(OnewayCompressedEdge{via_node_id, weight1, duration1});
     }
 
     BOOST_ASSERT(0 < edge_bucket_list1.size());
@@ -201,13 +205,14 @@ void CompressedEdgeContainer::CompressEdge(const EdgeID edge_id_1,
     else
     {
         // we are certain that the second edge is atomic.
-        edge_bucket_list1.emplace_back(OnewayCompressedEdge{target_node_id, weight2});
+        edge_bucket_list1.emplace_back(OnewayCompressedEdge{target_node_id, weight2, duration2});
     }
 }
 
 void CompressedEdgeContainer::AddUncompressedEdge(const EdgeID edge_id,
                                                   const NodeID target_node_id,
-                                                  const EdgeWeight weight)
+                                                  const EdgeWeight weight,
+                                                  const EdgeWeight duration)
 {
     // remove super-trivial geometries
     BOOST_ASSERT(SPECIAL_EDGEID != edge_id);
@@ -235,14 +240,15 @@ void CompressedEdgeContainer::AddUncompressedEdge(const EdgeID edge_id,
     BOOST_ASSERT(edge_bucket_id == GetPositionForID(edge_id));
     BOOST_ASSERT(edge_bucket_id < m_compressed_oneway_geometries.size());
 
-    std::vector<OnewayCompressedEdge> &edge_bucket_list = m_compressed_oneway_geometries[edge_bucket_id];
+    std::vector<OnewayCompressedEdge> &edge_bucket_list =
+        m_compressed_oneway_geometries[edge_bucket_id];
 
     // note we don't save the start coordinate: it is implicitly given by edge_id
     // weight is the distance to the (currently) last coordinate in the bucket
     // Don't re-add this if it's already in there.
     if (edge_bucket_list.empty())
     {
-        edge_bucket_list.emplace_back(OnewayCompressedEdge{target_node_id, weight});
+        edge_bucket_list.emplace_back(OnewayCompressedEdge{target_node_id, weight, duration});
     }
 }
 
@@ -264,7 +270,11 @@ unsigned CompressedEdgeContainer::ZipEdges(const EdgeID f_edge_id, const EdgeID 
 
     std::vector<CompressedEdge> zipped_edge_bucket;
     const auto &first_node = reverse_bucket.back();
-    zipped_edge_bucket.emplace_back(CompressedEdge{first_node.node_id, INVALID_EDGE_WEIGHT, first_node.weight});
+    zipped_edge_bucket.emplace_back(CompressedEdge{first_node.node_id,
+                                                   INVALID_EDGE_WEIGHT,
+                                                   first_node.weight,
+                                                   INVALID_EDGE_WEIGHT,
+                                                   first_node.duration});
 
     for (std::size_t i = 0; i < forward_bucket.size() - 1; ++i)
     {
@@ -273,11 +283,16 @@ unsigned CompressedEdgeContainer::ZipEdges(const EdgeID f_edge_id, const EdgeID 
 
         BOOST_ASSERT(fwd_node.node_id == rev_node.node_id);
 
-        zipped_edge_bucket.emplace_back(CompressedEdge{fwd_node.node_id, fwd_node.weight, rev_node.weight});
+        zipped_edge_bucket.emplace_back(CompressedEdge{fwd_node.node_id,
+                                                       fwd_node.weight,
+                                                       rev_node.weight,
+                                                       fwd_node.duration,
+                                                       rev_node.duration});
     }
 
     const auto &last_node = forward_bucket.back();
-    zipped_edge_bucket.emplace_back(CompressedEdge{last_node.node_id, last_node.weight, INVALID_EDGE_WEIGHT});
+    zipped_edge_bucket.emplace_back(
+        CompressedEdge{last_node.node_id, last_node.weight, INVALID_EDGE_WEIGHT});
     m_compressed_geometries.emplace_back(std::move(zipped_edge_bucket));
 
     return zipped_geometry_id;

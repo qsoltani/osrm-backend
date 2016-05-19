@@ -19,8 +19,9 @@ class CompressedEdgeContainer
     struct OnewayCompressedEdge
     {
       public:
-        NodeID node_id;    // refers to an internal node-based-node
-        EdgeWeight weight; // the weight of the edge leading to this node
+        NodeID node_id;      // refers to an internal node-based-node
+        EdgeWeight weight;   // the weight of the edge leading to this node
+        EdgeWeight duration; // the duration of the edge leading to this node
     };
 
     struct CompressedEdge
@@ -29,6 +30,8 @@ class CompressedEdgeContainer
         NodeID node_id;
         EdgeWeight forward_weight;
         EdgeWeight reverse_weight;
+        EdgeWeight forward_duration;
+        EdgeWeight reverse_duration;
     };
 
     using OnewayEdgeBucket = std::vector<OnewayCompressedEdge>;
@@ -40,10 +43,14 @@ class CompressedEdgeContainer
                       const NodeID via_node_id,
                       const NodeID target_node,
                       const EdgeWeight weight1,
-                      const EdgeWeight weight2);
+                      const EdgeWeight weight2,
+                      const EdgeWeight duration1,
+                      const EdgeWeight duration2);
 
-    void
-    AddUncompressedEdge(const EdgeID edge_id, const NodeID target_node, const EdgeWeight weight);
+    void AddUncompressedEdge(const EdgeID edge_id,
+                             const NodeID target_node,
+                             const EdgeWeight weight,
+                             const EdgeWeight duration);
 
     void InitializeBothwayVector();
     unsigned ZipEdges(const unsigned f_edge_pos, const unsigned r_edge_pos);
