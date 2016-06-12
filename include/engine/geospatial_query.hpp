@@ -369,17 +369,20 @@ template <typename RTreeT, typename DataFacadeT> class GeospatialQuery
         // Find the node-based-edge that this belongs to, and directly
         // calculate the forward_weight, forward_offset, reverse_weight, reverse_offset
 
-        int forward_offset = 0, forward_weight = 0;
-        int reverse_offset = 0, reverse_weight = 0;
+        int forward_offset = 0, forward_weight = 0, forward_duration = 0;
+        int reverse_offset = 0, reverse_weight = 0, reverse_duration = 0;
 
         const std::vector<EdgeWeight> forward_weight_vector = datafacade.GetUncompressedForwardWeights(data.packed_geometry_id);
         const std::vector<EdgeWeight> reverse_weight_vector = datafacade.GetUncompressedReverseWeights(data.packed_geometry_id);
+        const std::vector<EdgeWeight> forward_duration_vector = datafacade.GetUncompressedForwardDurations(data.packed_geometry_id);
+        const std::vector<EdgeWeight> reverse_duration_vector = datafacade.GetUncompressedReverseDurations(data.packed_geometry_id);
 
         for (std::size_t i = 0; i < data.fwd_segment_position; i++)
         {
             forward_offset += forward_weight_vector[i];
         }
         forward_weight = forward_weight_vector[data.fwd_segment_position];
+        forward_duration = forward_duration_vector[data.fwd_segment_position];
 
         BOOST_ASSERT(data.fwd_segment_position < reverse_weight_vector.size());
 
@@ -391,6 +394,8 @@ template <typename RTreeT, typename DataFacadeT> class GeospatialQuery
         }
         reverse_weight =
             reverse_weight_vector[reverse_weight_vector.size() - data.fwd_segment_position - 1];
+        reverse_duration =
+            reverse_duration_vector[reverse_duration_vector.size() - data.fwd_segment_position - 1];
 
         ratio = std::min(1.0, std::max(0.0, ratio));
         if (data.forward_segment_id.id != SPECIAL_SEGMENTID)
@@ -404,8 +409,10 @@ template <typename RTreeT, typename DataFacadeT> class GeospatialQuery
 
         auto transformed = PhantomNodeWithDistance{PhantomNode{data,
                                                                forward_weight,
-                                                               forward_offset,
                                                                reverse_weight,
+                                                               forward_duration,
+                                                               reverse_duration,
+                                                               forward_offset,
                                                                reverse_offset,
                                                                point_on_segment,
                                                                input_coordinate},
