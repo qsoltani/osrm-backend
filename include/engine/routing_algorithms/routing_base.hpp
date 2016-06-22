@@ -407,10 +407,10 @@ template <class DataFacadeT, class Derived> class BasicRoutingInterface
             // TODO this creates a scenario where it's possible the duration from a phantom
             // node to the first turn would be the same as from end to end of a segment,
             // which is obviously incorrect and not ideal...
-            unpacked_path.front().duration_until_turn =
-                std::max(unpacked_path.front().duration_until_turn - source_weight, 0);
             unpacked_path.front().weight_until_turn =
-                std::max(unpacked_path.front().weight_until_turn - source_duration, 0);
+                std::max(unpacked_path.front().weight_until_turn - source_weight, 0);
+            unpacked_path.front().duration_until_turn =
+                std::max(unpacked_path.front().duration_until_turn - source_duration, 0);
         }
 
         // there is no equivalent to a node-based node in an edge-expanded graph.
