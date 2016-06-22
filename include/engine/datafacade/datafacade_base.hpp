@@ -81,6 +81,10 @@ class BaseDataFacade
 
     virtual std::vector<NodeID> GetUncompressedReverseGeometry(const EdgeID id) const = 0;
 
+    virtual TurnPenalty GetWeightPenaltyForEdgeID(const unsigned id) const = 0;
+
+    virtual TurnPenalty GetDurationPenaltyForEdgeID(const unsigned id) const = 0;
+
     // Gets the weight values for each segment in an uncompressed geometry.
     // Should always be 1 shorter than GetUncompressedGeometry
     virtual std::vector<EdgeWeight> GetUncompressedForwardWeights(const EdgeID id) const = 0;

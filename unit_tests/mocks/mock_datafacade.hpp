@@ -65,6 +65,14 @@ class MockDataFacade final : public engine::datafacade::BaseDataFacade
     {
         return GeometryID{SPECIAL_GEOMETRYID, false};
     }
+    TurnPenalty GetWeightPenaltyForEdgeID(const unsigned /* id */) const override final
+    {
+        return 0;
+    }
+    TurnPenalty GetDurationPenaltyForEdgeID(const unsigned /* id */) const override final
+    {
+        return 0;
+    }
     std::vector<NodeID> GetUncompressedForwardGeometry(const EdgeID /* id */) const override
     {
         return {};
