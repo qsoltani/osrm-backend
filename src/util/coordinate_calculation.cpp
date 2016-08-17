@@ -292,6 +292,33 @@ Coordinate interpolateLinear(double factor, const Coordinate from, const Coordin
     return {std::move(interpolated_lon), std::move(interpolated_lat)};
 }
 
+// compute the signed area of a triangle
+double signedArea(const Coordinate first_coordinate,
+                  const Coordinate second_coordinate,
+                  const Coordinate third_coordinate)
+{
+    return 0.5 * (-static_cast<double>(toFloating(second_coordinate.lon)) *
+                      static_cast<double>(toFloating(first_coordinate.lat)) +
+                  static_cast<double>(toFloating(third_coordinate.lon)) *
+                      static_cast<double>(toFloating(first_coordinate.lat)) +
+                  static_cast<double>(toFloating(first_coordinate.lon)) *
+                      static_cast<double>(toFloating(second_coordinate.lat)) -
+                  static_cast<double>(toFloating(third_coordinate.lon)) *
+                      static_cast<double>(toFloating(second_coordinate.lat)) -
+                  static_cast<double>(toFloating(first_coordinate.lon)) *
+                      static_cast<double>(toFloating(third_coordinate.lat)) +
+                  static_cast<double>(toFloating(second_coordinate.lon)) *
+                      static_cast<double>(toFloating(third_coordinate.lat)));
+}
+
+// check if a set of three coordinates is given in CCW order
+bool isCCW(const Coordinate first_coordinate,
+           const Coordinate second_coordinate,
+           const Coordinate third_coordinate)
+{
+    return signedArea(first_coordinate,second_coordinate,third_coordinate) > 0;
+}
+
 } // ns coordinate_calculation
 } // ns util
 } // ns osrm

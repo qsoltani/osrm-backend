@@ -7,13 +7,16 @@
 #include "util/coordinate_calculation.hpp"
 #include "util/guidance/toolkit.hpp"
 #include "util/guidance/turn_lanes.hpp"
+#include "util/node_based_graph.hpp"
 #include "util/typedefs.hpp"
 
 #include "extractor/compressed_edge_container.hpp"
 #include "extractor/query_node.hpp"
 
+#include "extractor/guidance/constants.hpp"
 #include "extractor/guidance/discrete_angle.hpp"
 #include "extractor/guidance/intersection.hpp"
+#include "extractor/guidance/road_classification.hpp"
 #include "extractor/guidance/turn_instruction.hpp"
 
 #include <algorithm>
@@ -41,113 +44,6 @@ using LaneDataIdMap = std::unordered_map<LaneTupelIdPair, LaneDataID, boost::has
 using util::guidance::angularDeviation;
 using util::guidance::entersRoundabout;
 using util::guidance::leavesRoundabout;
-
-namespace detail
-{
-const constexpr double DESIRED_SEGMENT_LENGTH = 10.0;
-
-template <typename IteratorType>
-util::Coordinate
-getCoordinateFromCompressedRange(util::Coordinate current_coordinate,
-                                 const IteratorType compressed_geometry_begin,
-                                 const IteratorType compressed_geometry_end,
-                                 const util::Coordinate final_coordinate,
-                                 const std::vector<extractor::QueryNode> &query_nodes)
-{
-    const auto extractCoordinateFromNode =
-        [](const extractor::QueryNode &node) -> util::Coordinate {
-        return {node.lon, node.lat};
-    };
-    double distance_to_current_coordinate = 0;
-    double distance_to_next_coordinate = 0;
-
-    // get the length that is missing from the current segment to reach DESIRED_SEGMENT_LENGTH
-    const auto getFactor = [](const double first_distance, const double second_distance) {
-        BOOST_ASSERT(first_distance < detail::DESIRED_SEGMENT_LENGTH);
-        double segment_length = second_distance - first_distance;
-        BOOST_ASSERT(segment_length > 0);
-        BOOST_ASSERT(second_distance >= detail::DESIRED_SEGMENT_LENGTH);
-        double missing_distance = detail::DESIRED_SEGMENT_LENGTH - first_distance;
-        return std::max(0., std::min(missing_distance / segment_length, 1.0));
-    };
-
-    for (auto compressed_geometry_itr = compressed_geometry_begin;
-         compressed_geometry_itr != compressed_geometry_end;
-         ++compressed_geometry_itr)
-    {
-        const auto next_coordinate =
-            extractCoordinateFromNode(query_nodes[compressed_geometry_itr->node_id]);
-        distance_to_next_coordinate =
-            distance_to_current_coordinate +
-            util::coordinate_calculation::haversineDistance(current_coordinate, next_coordinate);
-
-        // reached point where coordinates switch between
-        if (distance_to_next_coordinate >= detail::DESIRED_SEGMENT_LENGTH)
-            return util::coordinate_calculation::interpolateLinear(
-                getFactor(distance_to_current_coordinate, distance_to_next_coordinate),
-                current_coordinate,
-                next_coordinate);
-
-        // prepare for next iteration
-        current_coordinate = next_coordinate;
-        distance_to_current_coordinate = distance_to_next_coordinate;
-    }
-
-    distance_to_next_coordinate =
-        distance_to_current_coordinate +
-        util::coordinate_calculation::haversineDistance(current_coordinate, final_coordinate);
-
-    // reached point where coordinates switch between
-    if (distance_to_current_coordinate < detail::DESIRED_SEGMENT_LENGTH &&
-        distance_to_next_coordinate >= detail::DESIRED_SEGMENT_LENGTH)
-        return util::coordinate_calculation::interpolateLinear(
-            getFactor(distance_to_current_coordinate, distance_to_next_coordinate),
-            current_coordinate,
-            final_coordinate);
-    else
-        return final_coordinate;
-}
-} // namespace detail
-
-// Finds a (potentially interpolated) coordinate that is DESIRED_SEGMENT_LENGTH away
-// from the start of an edge
-inline util::Coordinate
-getRepresentativeCoordinate(const NodeID from_node,
-                            const NodeID to_node,
-                            const EdgeID via_edge_id,
-                            const bool traverse_in_reverse,
-                            const extractor::CompressedEdgeContainer &compressed_geometries,
-                            const std::vector<extractor::QueryNode> &query_nodes)
-{
-    const auto extractCoordinateFromNode =
-        [](const extractor::QueryNode &node) -> util::Coordinate {
-        return {node.lon, node.lat};
-    };
-
-    // Uncompressed roads are simple, return the coordinate at the end
-    if (!compressed_geometries.HasZippedEntryForForwardID(via_edge_id) && !compressed_geometries.HasZippedEntryForReverseID(via_edge_id))
-    {
-        return extractCoordinateFromNode(traverse_in_reverse ? query_nodes[from_node]
-                                                             : query_nodes[to_node]);
-    }
-    else
-    {
-        const auto &geometry = compressed_geometries.GetBucketReference(via_edge_id);
-
-        const auto base_node_id = (traverse_in_reverse) ? to_node : from_node;
-        const auto base_coordinate = extractCoordinateFromNode(query_nodes[base_node_id]);
-
-        const auto final_node = (traverse_in_reverse) ? from_node : to_node;
-        const auto final_coordinate = extractCoordinateFromNode(query_nodes[final_node]);
-
-        if (traverse_in_reverse)
-            return detail::getCoordinateFromCompressedRange(
-                base_coordinate, geometry.rbegin(), geometry.rend(), final_coordinate, query_nodes);
-        else
-            return detail::getCoordinateFromCompressedRange(
-                base_coordinate, geometry.begin(), geometry.end(), final_coordinate, query_nodes);
-    }
-}
 
 // To simplify handling of Left/Right hand turns, we can mirror turns and write an intersection
 // handler only for one side. The mirror function turns a left-hand turn in a equivalent right-hand
@@ -283,6 +179,30 @@ inline std::string applyAccessTokens(std::string lane_string, const std::string 
         }
     }
     return result_string;
+}
+
+inline bool obviousByRoadClass(const RoadClassification in_classification,
+                               const RoadClassification obvious_candidate,
+                               const RoadClassification compare_candidate)
+{
+    const bool has_high_priority = PRIORITY_DISTINCTION_FACTOR * obvious_candidate.GetPriority() <
+                                   compare_candidate.GetPriority();
+
+    const bool continues_on_same_class = in_classification == obvious_candidate;
+    return (has_high_priority && continues_on_same_class) ||
+           (!obvious_candidate.IsLowPriorityRoadClass() &&
+            !in_classification.IsLowPriorityRoadClass() &&
+            compare_candidate.IsLowPriorityRoadClass());
+}
+
+inline std::uint8_t getLaneCountAtIntersection(const NodeID intersection_node,
+                                        const util::NodeBasedDynamicGraph &node_based_graph)
+{
+    std::uint8_t lanes = 0;
+    for (const EdgeID onto_edge : node_based_graph.GetAdjacentEdgeRange(intersection_node))
+        lanes = std::max(
+            lanes, node_based_graph.GetEdgeData(onto_edge).road_classification.GetNumberOfLanes());
+    return lanes;
 }
 
 } // namespace guidance
