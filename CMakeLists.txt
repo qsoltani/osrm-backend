@@ -46,6 +46,7 @@ if(WIN32 AND MSVC_VERSION LESS 1900)
   message(FATAL_ERROR "Building with Microsoft compiler needs Latest Visual Studio 2015 (Community or better)")
 endif()
 
+option(ENABLE_MASON "Use mason for dependencies" OFF)
 option(ENABLE_CCACHE "Speed up incremental rebuilds via ccache" ON)
 option(BUILD_TOOLS "Build OSRM tools" OFF)
 option(BUILD_COMPONENTS "Build osrm-components" OFF)
@@ -274,6 +275,10 @@ add_dependency_includes(${OSMIUM_INCLUDE_DIR})
 # Disallow deprecated protozero APIs
 add_definitions(-DPROTOZERO_STRICT_API)
 
+if(ENABLE_MASON)
+  message(STATUS "Enabling mason")
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/UseMason.cmake)
+endif()
 
 find_package(Boost 1.49.0 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
 
