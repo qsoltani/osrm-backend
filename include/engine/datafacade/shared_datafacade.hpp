@@ -72,6 +72,7 @@ class SharedDataFacade final : public BaseDataFacade
 
     unsigned m_check_sum;
     std::unique_ptr<QueryGraph> m_query_graph;
+    std::unique_ptr<storage::SharedMemory> m_data_timestamp_memory;
     std::unique_ptr<storage::SharedMemory> m_layout_memory;
     std::unique_ptr<storage::SharedMemory> m_large_memory;
     std::string m_timestamp;
@@ -376,10 +377,9 @@ class SharedDataFacade final : public BaseDataFacade
             throw util::exception(
                 "No shared memory blocks found, have you forgotten to run osrm-datastore?");
         }
-        data_timestamp_ptr = static_cast<storage::SharedDataTimestamp *>(
-            storage::makeSharedMemory(
-                storage::CURRENT_REGIONS, sizeof(storage::SharedDataTimestamp), false, false)
-                ->Ptr());
+
+        m_data_timestamp_memory = storage::makeSharedMemory(storage::CURRENT_REGIONS, sizeof(storage::SharedDataTimestamp), false, false);
+        data_timestamp_ptr = static_cast<storage::SharedDataTimestamp *>(m_data_timestamp_memory->Ptr());
         CURRENT_LAYOUT = storage::LAYOUT_NONE;
         CURRENT_DATA = storage::DATA_NONE;
         CURRENT_TIMESTAMP = 0;
@@ -423,11 +423,11 @@ class SharedDataFacade final : public BaseDataFacade
                 CURRENT_TIMESTAMP = data_timestamp_ptr->timestamp;
 
                 util::SimpleLogger().Write(logDEBUG) << "Performing data reload";
-                m_layout_memory.reset(storage::makeSharedMemory(CURRENT_LAYOUT));
+                m_layout_memory = storage::makeSharedMemory(CURRENT_LAYOUT);
 
                 data_layout = static_cast<storage::SharedDataLayout *>(m_layout_memory->Ptr());
 
-                m_large_memory.reset(storage::makeSharedMemory(CURRENT_DATA));
+                m_large_memory = storage::makeSharedMemory(CURRENT_DATA);
                 shared_memory = (char *)(m_large_memory->Ptr());
 
                 const auto file_index_ptr = data_layout->GetBlockPtr<char>(

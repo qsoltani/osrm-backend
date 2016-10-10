@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <exception>
+#include <memory>
 
 namespace osrm
 {
@@ -86,7 +87,8 @@ class SharedMemory
                  const IdentifierT id,
                  const uint64_t size = 0,
                  bool read_write = false,
-                 bool remove_prev = true)
+                 bool remove_prev = true,
+                 bool remove_at_dtor = false)
         : key(lock_file.string().c_str(), id)
     {
         if (0 == size)
@@ -117,7 +119,10 @@ class SharedMemory
 #endif
             region = boost::interprocess::mapped_region(shm, boost::interprocess::read_write);
 
-            remover.SetID(shm.get_shmid());
+            if (remove_at_dtor)
+            {
+                remover.SetID(shm.get_shmid());
+            }
             util::SimpleLogger().Write(logDEBUG) << "writeable memory allocated " << size
                                                  << " bytes";
         }
@@ -230,7 +235,8 @@ class SharedMemory
                  const int id,
                  const uint64_t size = 0,
                  bool read_write = false,
-                 bool remove_prev = true)
+                 bool remove_prev = true,
+                 bool remove_at_dtor = false)
     {
         sprintf(key, "%s.%d", "osrm.lock", id);
         if (0 == size)
@@ -254,7 +260,10 @@ class SharedMemory
             shm.truncate(size);
             region = boost::interprocess::mapped_region(shm, boost::interprocess::read_write);
 
-            remover.SetID(key);
+            if (remove_at_dtor)
+            {
+                remover.SetID(key);
+            }
             util::SimpleLogger().Write(logDEBUG) << "writeable memory allocated " << size
                                                  << " bytes";
         }
@@ -327,10 +336,11 @@ class SharedMemory
 #endif
 
 template <typename IdentifierT, typename LockFileT = OSRMLockFile>
-SharedMemory *makeSharedMemory(const IdentifierT &id,
-                               const uint64_t size = 0,
-                               bool read_write = false,
-                               bool remove_prev = true)
+std::unique_ptr<SharedMemory> makeSharedMemory(const IdentifierT &id,
+                                               const uint64_t size = 0,
+                                               bool read_write = false,
+                                               bool remove_prev = true,
+                                               bool remove_at_dtor = false)
 {
     try
     {
@@ -346,7 +356,7 @@ SharedMemory *makeSharedMemory(const IdentifierT &id,
                 boost::filesystem::ofstream ofs(lock_file());
             }
         }
-        return new SharedMemory(lock_file(), id, size, read_write, remove_prev);
+        return std::make_unique<SharedMemory>(lock_file(), id, size, read_write, remove_prev, remove_at_dtor);
     }
     catch (const boost::interprocess::interprocess_exception &e)
     {
