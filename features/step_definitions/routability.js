@@ -20,7 +20,12 @@ module.exports = function () {
                     testRoutabilityRow(i, (err, result) => {
                         if (err) return cb(err);
                         directions.filter(d => headers.has(d)).forEach((direction) => {
-                            var want = this.shortcutsHash[row[direction]] || row[direction];
+                            var usingShortcut = false,
+                                want = row[direction];
+                            if (this.shortcutsHash[row[direction]]) {
+                                want = this.shortcutsHash[row[direction]];
+                                usingShortcut = row[direction];
+                            }
 
                             switch (true) {
                             case '' === want:
@@ -42,7 +47,7 @@ module.exports = function () {
                             }
 
                             if (this.FuzzyMatch.match(outputRow[direction], want)) {
-                                outputRow[direction] = row[direction];
+                                outputRow[direction] = usingShortcut ? usingShortcut : row[direction];
                             }
                         });
 
