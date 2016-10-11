@@ -33,8 +33,9 @@ module.exports = function () {
                                     result[direction].time.toString()+'s' : '';
                                 break;
                             case /^\d+ km\/h/.test(want):
-                                outputRow[direction] = result[direction].speed ?
-                                    result[direction].speed.toString()+' km/h' : '';
+                                outputRow[direction] = !isNaN(result[direction].speed) ?
+                                    result[direction].speed.toString()+' km/h' :
+                                    result[direction].speed.toString() || '';
                                 break;
                             default:
                                 throw new Error(util.format('*** Unknown expectation format: %s', want));
@@ -48,7 +49,6 @@ module.exports = function () {
                         cb(null, outputRow);
                     });
                 };
-
                 this.processRowsAndDiff(table, testRow, callback);
             });
         });
