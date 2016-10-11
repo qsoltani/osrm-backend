@@ -29,8 +29,12 @@ module.exports = function () {
                                     result[direction].status.toString() : '';
                                 break;
                             case /^\d+s/.test(want):
+                                outputRow[direction] = result[direction].time ?
+                                    result[direction].time.toString()+'s' : '';
                                 break;
                             case /^\d+ km\/h/.test(want):
+                                outputRow[direction] = result[direction].speed ?
+                                    result[direction].speed.toString()+' km/h' : '';
                                 break;
                             default:
                                 throw new Error(util.format('*** Unknown expectation format: %s', want));
