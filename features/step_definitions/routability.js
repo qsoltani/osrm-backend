@@ -111,6 +111,15 @@ module.exports = function () {
                 var parseRes = (key, scb) => {
                     if (result.forw[key] === result.backw[key]) {
                         result.bothw[key] = result.forw[key];
+                    // FIXME this check is a temp stopgap for precision errors in how
+                    // OSRM returns inconsistent durations for rev/for requests along
+                    // the same way
+                    } else if (key === 'time') {
+                        var range = [result.forw[key] - 1, result.forw[key] + 1];
+                        if (result.backw[key] >= range[0] || result.backw[key] <= range[1])
+                            result.bothw[key] = result.forw[key];
+                        else
+                            result.bothw[key] = 'diff';
                     } else {
                         result.bothw[key] = 'diff';
                     }
