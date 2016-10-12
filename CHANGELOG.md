@@ -5,6 +5,9 @@
       - replaced lhs/rhs profiles by using test defined profiles
     - Guidance
       - Notifications are now exposed more prominently, announcing turns onto a ferry/pushing your bike more prominently
+      - Improved turn angle calculation
+      - Corrected the bearings returned for intermediate steps - requires reprocessing
+      - Improved turn locations for collapsed turns
     - Trip Plugin
       - changed internal behaviour to prefer the smallest lexicographic result over the largest one
     - Bugfixes
