@@ -32,6 +32,7 @@
 #include <boost/interprocess/sync/named_upgradable_mutex.hpp>
 #include <boost/interprocess/sync/scoped_lock.hpp>
 #include <boost/interprocess/sync/upgradable_lock.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/iostreams/seek.hpp>
 
 #include <cstdint>
@@ -83,11 +84,12 @@ RegionsLayout getRegionsLayout(SharedBarriers &barriers)
     return RegionsLayout {LAYOUT_2, DATA_2, barriers.regions_2_mutex, LAYOUT_1, DATA_1, barriers.regions_1_mutex};
 }
 
-int Storage::Run()
+Storage::ReturnCode Storage::Run(int max_wait)
 {
     BOOST_ASSERT_MSG(config.IsValid(), "Invalid storage config");
 
     util::LogPolicy::GetInstance().Unmute();
+
     SharedBarriers barriers;
 
     boost::interprocess::upgradable_lock<boost::interprocess::named_upgradable_mutex>
@@ -97,7 +99,7 @@ int Storage::Run()
         if (!current_regions_lock.try_lock())
         {
             util::SimpleLogger().Write(logWARNING) << "A data update is in progress";
-            return EXIT_FAILURE;
+            return ReturnCode::Error;
         }
     }
     // hard unlock in case of any exception.
@@ -121,9 +123,44 @@ int Storage::Run()
     const SharedDataType layout_region = regions_layout.old_layout_region;
     const SharedDataType data_region = regions_layout.old_data_region;
 
-    util::SimpleLogger().Write() << "Waiting for all queries on the old dataset to finish:";
+    if (max_wait > 0)
+    {
+        util::SimpleLogger().Write() << "Waiting for " << max_wait << " second for all queries on the old dataset to finish:";
+    }
+    else
+    {
+        util::SimpleLogger().Write() << "Waiting for all queries on the old dataset to finish:";
+    }
+
     boost::interprocess::scoped_lock<boost::interprocess::named_sharable_mutex>
-        layout_lock(regions_layout.old_regions_mutex);
+        regions_lock(regions_layout.old_regions_mutex, boost::interprocess::defer_lock);
+
+    if (max_wait > 0)
+    {
+        if (!regions_lock.timed_lock(boost::posix_time::microsec_clock::universal_time() +
+                                     boost::posix_time::seconds(max_wait)))
+        {
+            util::SimpleLogger().Write(logWARNING) << "Queries did not finish in " << max_wait
+                                                   << " seconds. Claiming the lock by force.";
+            if (regions_layout.old_layout_region == LAYOUT_1)
+            {
+                BOOST_ASSERT(regions_layout.old_data_region == DATA_1);
+                barriers.resetRegions1();
+            }
+            else
+            {
+                BOOST_ASSERT(regions_layout.old_layout_region == LAYOUT_2);
+                BOOST_ASSERT(regions_layout.old_data_region == DATA_2);
+                barriers.resetRegions2();
+            }
+
+            return ReturnCode::Retry;
+        }
+    }
+    else
+    {
+        regions_lock.lock();
+    }
     util::SimpleLogger().Write() << "Ok.";
 
     // since we can't change the size of a shared memory regions we delete and reallocate
@@ -757,7 +794,24 @@ int Storage::Run()
 
     {
         boost::interprocess::scoped_lock<boost::interprocess::named_upgradable_mutex>
-            current_regions_exclusive_lock(std::move(current_regions_lock));
+            current_regions_exclusive_lock(std::move(current_regions_lock), boost::interprocess::try_to_lock);
+
+        if (!current_regions_exclusive_lock.owns())
+        {
+            if (max_wait > 0)
+            {
+                if (!current_regions_exclusive_lock.timed_lock(boost::posix_time::microsec_clock::universal_time() +
+                                             boost::posix_time::seconds(max_wait)))
+                {
+                    storage::SharedBarriers::resetCurrentRegions();
+                    return ReturnCode::Retry;
+                }
+            }
+            else
+            {
+                current_regions_exclusive_lock.lock();
+            }
+        }
 
         data_timestamp_ptr->layout = layout_region;
         data_timestamp_ptr->data = data_region;
@@ -765,7 +819,7 @@ int Storage::Run()
     }
     util::SimpleLogger().Write() << "all data loaded";
 
-    return EXIT_SUCCESS;
+    return ReturnCode::Ok;
 }
 }
 }
