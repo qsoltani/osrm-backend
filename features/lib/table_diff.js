@@ -19,8 +19,6 @@ module.exports = function (expected, actual) {
         var rowError = false;
 
         for (var j in row) {
-            // with given table values that have '+- x' modifier, a straight = compare
-            // will fail. we rely instead on what fuzzyMatch said about it
             if (unescapeStr(row[j]) != actual[i][j]) {
                 rowError = true;
                 hasErrors = true;

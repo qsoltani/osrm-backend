@@ -22,6 +22,10 @@ module.exports = function () {
                         directions.filter(d => headers.has(d)).forEach((direction) => {
                             var usingShortcut = false,
                                 want = row[direction];
+                            // shortcuts are when a test has mapped a value like `foot` to
+                            // a value like `5 km/h`, to represent the speed that one
+                            // can travel by foot. we check for these and use the mapped to
+                            // value for later comparison.
                             if (this.shortcutsHash[row[direction]]) {
                                 want = this.shortcutsHash[row[direction]];
                                 usingShortcut = row[direction];
@@ -34,8 +38,12 @@ module.exports = function () {
                                     result[direction].status.toString() : '';
                                 break;
                             case /^\d+s/.test(want):
-                                outputRow[direction] = result[direction].time ?
-                                    result[direction].time.toString()+'s' : '';
+                                // the result here can come back as a non-number value like
+                                // `diff`, but we only want to apply the unit when it comes 
+                                // back as a number, for tableDiff's literal comparison
+                                outputRow[direction] = !isNaN(result[direction].time) ?
+                                    result[direction].time.toString()+' s' :
+                                    result[direction].time.toString() || '';
                                 break;
                             case /^\d+ km\/h/.test(want):
                                 outputRow[direction] = !isNaN(result[direction].speed) ?
@@ -111,12 +119,14 @@ module.exports = function () {
                 var parseRes = (key, scb) => {
                     if (result.forw[key] === result.backw[key]) {
                         result.bothw[key] = result.forw[key];
-                    // FIXME these time and speed checks are temp stopgaps for
-                    // precision errors in how OSRM returns inconsistent durations
-                    // for rev/for requests along the same way
+                    // FIXME these time and speed checks are stopgaps for precision errors in how
+                    // OSRM returns inconsistent durations for rev/for requests along the same way
                     } else if (key === 'time') {
                         var range = [result.forw[key] - 1, result.forw[key] + 1];
                         if (result.backw[key] >= range[0] && result.backw[key] <= range[1])
+                            // usually when we see minor differences here there's an integer
+                            // duration value and one that comes back with a .9 or .1 rounding.
+                            // This returns the integer one
                             result.bothw[key] = parseInt(result.forw[key]) === result.forw[key] ? result.forw[key] : result.backw[key];
                         else
                             result.bothw[key] = 'diff';
