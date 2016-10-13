@@ -15,7 +15,7 @@ module.exports = function () {
             this.reprocessAndLoadData((e) => {
                 if (e) return callback(e);
                 var testRow = (row, i, cb) => {
-                    var outputRow = row;
+                    var outputRow = Object.assign({}, row);
 
                     testRoutabilityRow(i, (err, result) => {
                         if (err) return cb(err);
@@ -47,9 +47,7 @@ module.exports = function () {
                             }
 
                             if (this.FuzzyMatch.match(outputRow[direction], want)) {
-                                outputRow[direction] = {};
-                                outputRow[direction].val = [usingShortcut ? usingShortcut : row[direction]];
-                                outputRow[direction].fuzzyMatched = true;
+                                outputRow[direction] = [usingShortcut ? usingShortcut : row[direction]];
                             }
                         });
 
@@ -113,15 +111,21 @@ module.exports = function () {
                 var parseRes = (key, scb) => {
                     if (result.forw[key] === result.backw[key]) {
                         result.bothw[key] = result.forw[key];
-                    // FIXME this check is a temp stopgap for precision errors in how
-                    // OSRM returns inconsistent durations for rev/for requests along
-                    // the same way
+                    // FIXME these time and speed checks are temp stopgaps for
+                    // precision errors in how OSRM returns inconsistent durations
+                    // for rev/for requests along the same way
                     } else if (key === 'time') {
                         var range = [result.forw[key] - 1, result.forw[key] + 1];
-                        if (result.backw[key] >= range[0] || result.backw[key] <= range[1])
-                            result.bothw[key] = result.forw[key];
+                        if (result.backw[key] >= range[0] && result.backw[key] <= range[1])
+                            result.bothw[key] = result.forw[key] > result.backw[key] ? result.forw[key] : result.backw[key];
                         else
                             result.bothw[key] = 'diff';
+                    } else if (key === 'speed') {
+                        if (Math.abs(result.backw.time - result.forw.time) < 0.2) {
+                            result.bothw[key] = result.forw[key] > result.backw[key] ? result.forw[key] : result.backw[key];
+                        } else {
+                            result.bothw[key] = 'diff';
+                        }
                     } else {
                         result.bothw[key] = 'diff';
                     }

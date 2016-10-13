@@ -21,18 +21,10 @@ module.exports = function (expected, actual) {
         for (var j in row) {
             // with given table values that have '+- x' modifier, a straight = compare
             // will fail. we rely instead on what fuzzyMatch said about it
-            if (typeof actual[i][j] === 'object') {
-                if (!actual[i][j].fuzzyMatched) {
-                    rowError = true;
-                    hasErrors = true;
-                    break;
-                }
-            } else {
-                if (unescapeStr(row[j]) != actual[i][j]) {
-                    rowError = true;
-                    hasErrors = true;
-                    break;
-                }
+            if (unescapeStr(row[j]) != actual[i][j]) {
+                rowError = true;
+                hasErrors = true;
+                break;
             }
         }
 
