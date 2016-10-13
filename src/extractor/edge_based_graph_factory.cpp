@@ -445,7 +445,7 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
                         GeometryID{m_compressed_edge_container.GetZippedPositionForForwardID(edge_from_u), true},
                         edge_data1.name_id,
                         turn.lane_data_id,
-                        turn_instruction,
+                        turn.instruction,
                         entry_class_id,
                         edge_data1.travel_mode);
                 } else if (is_encoded_backwards) {
@@ -453,7 +453,7 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
                         GeometryID{m_compressed_edge_container.GetZippedPositionForReverseID(edge_from_u), false},
                         edge_data1.name_id,
                         turn.lane_data_id,
-                        turn_instruction,
+                        turn.instruction,
                         entry_class_id,
                         edge_data1.travel_mode);
                 }

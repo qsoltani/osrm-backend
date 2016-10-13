@@ -291,8 +291,11 @@ unsigned CompressedEdgeContainer::ZipEdges(const EdgeID f_edge_id, const EdgeID 
     }
 
     const auto &last_node = forward_bucket.back();
-    zipped_edge_bucket.emplace_back(
-        CompressedEdge{last_node.node_id, last_node.weight, INVALID_EDGE_WEIGHT});
+    zipped_edge_bucket.emplace_back(CompressedEdge{last_node.node_id,
+                                                   last_node.weight,
+                                                   INVALID_EDGE_WEIGHT,
+                                                   last_node.duration,
+                                                   INVALID_EDGE_WEIGHT});
     m_compressed_geometries.emplace_back(std::move(zipped_edge_bucket));
 
     return zipped_geometry_id;
