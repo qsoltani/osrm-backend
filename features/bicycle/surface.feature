@@ -22,6 +22,7 @@ Feature: Bike - Surfaces
             | cycleway | mud                   | 240s  |
             | cycleway | sand                  | 240s  |
 
+    @todo
     Scenario: Bicycle - Good surfaces on small paths
         Then routability should be
         | highway  | surface | bothw |
