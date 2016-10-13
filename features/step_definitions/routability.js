@@ -117,12 +117,12 @@ module.exports = function () {
                     } else if (key === 'time') {
                         var range = [result.forw[key] - 1, result.forw[key] + 1];
                         if (result.backw[key] >= range[0] && result.backw[key] <= range[1])
-                            result.bothw[key] = result.forw[key] > result.backw[key] ? result.forw[key] : result.backw[key];
+                            result.bothw[key] = parseInt(result.forw[key]) === result.forw[key] ? result.forw[key] : result.backw[key];
                         else
                             result.bothw[key] = 'diff';
                     } else if (key === 'speed') {
                         if (Math.abs(result.backw.time - result.forw.time) < 0.2) {
-                            result.bothw[key] = result.forw[key] > result.backw[key] ? result.forw[key] : result.backw[key];
+                            result.bothw[key] = parseInt(result.forw[key]) === result.forw[key] ? result.forw[key] : result.backw[key];
                         } else {
                             result.bothw[key] = 'diff';
                         }

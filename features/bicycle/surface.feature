@@ -13,7 +13,6 @@ Feature: Bike - Surfaces
             | cycleway | paving_stones         | 72s   |
             | cycleway | compacted             | 72s   |
             | cycleway | cobblestone           | 120s  |
-            | cycleway | unpaved               | 120s  |
             | cycleway | fine_gravel           | 120s  |
             | cycleway | gravel                | 120s  |
             | cycleway | pebblestone           | 120s  |

@@ -13,11 +13,11 @@ Feature: Car - speeds
             | trunk          | no     | 79 km/h +- 1 |
             | trunk_link     | no     | 43 km/h +- 1 |
             | primary        | no     | 63 km/h +- 1 |
-            | primary_link   | no     | 34 km/h      |
+            | primary_link   | no     | 35 km/h      |
             | secondary      | no     | 54 km/h +- 1 |
             | secondary_link | no     | 31 km/h      |
             | tertiary       | no     | 43 km/h      |
-            | tertiary_link  | no     | 26 km/h      |
+            | tertiary_link  | no     | 27 km/h      |
             | unclassified   | no     | 31 km/h      |
             | residential    | no     | 31 km/h      |
             | living_street  | no     | 18 km/h      |
